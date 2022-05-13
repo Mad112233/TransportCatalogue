@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package transport_catalogue_serialize;
+
+message Stop{
+	string name_stop=1;
+	double lat=2;
+	double lng=3;
+}
+
+message Bus{
+	string number_bus=1;
+	bool is_roundtrip=2;
+	repeated string route=3;
+}
+
+message BusesForStop{
+	string stop=1;
+	repeated string buses=2;
+}
+
+message Distance{
+	string first=1;
+	string last=2;
+	double distance=3;
+}
+
+message RGB{
+	int32 red=1;
+	int32 green=2;
+	int32 blue=3;
+}
+
+message RGBA{
+	int32 red=1;
+	int32 green=2;
+	int32 blue=3;
+	double opacity=4;
+}
+
+message Color{
+	oneof underlayer_color{
+		string string_color=1;
+		RGB rgb_color=2;
+		RGBA rgba_color=3;
+	}
+}
+
+message RenderSettingsSVG{
+	double width=1;
+	double height=2;
+	
+	double padding=3;
+
+        double line_width=4;
+        double stop_radius=5;
+
+	int32 bus_label_font_size=6;
+	double bus_label_offset_first=7;
+	double bus_label_offset_second=8;
+
+        int32 stop_label_font_size=9;
+	double stop_label_offset_first=10;
+	double stop_label_offset_second=11;
+
+	Color underlayer_color=12;
+        double underlayer_width=13;
+	
+	repeated Color color_palette=14;
+}
+
+message RoutingSettings{
+	double bus_wait_time=1;
+	double bus_velocity=2;
+}
+
+message TransportCatalogue{
+	repeated BusesForStop list_buses_for_stop=1;
+	repeated Distance distance=2;
+	repeated Stop stops=3;
+	repeated Bus buses=4;
+	RenderSettingsSVG settings_svg=5;
+	RoutingSettings routing_settings=6;
+}
