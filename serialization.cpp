@@ -5,8 +5,7 @@
 #include <string_view>
 #include <variant>
 
-
-void Serialization(const std::string& path, catalogue::TransportCatalogue& transport_catalogue, renderer::MapRenderer& map,
+void Serialize(const std::string& path, catalogue::TransportCatalogue& transport_catalogue, renderer::MapRenderer& map,
     const double bus_wait_time, const double bus_velocity) {
 
     std::ofstream fout(path, std::ios::binary);
@@ -15,6 +14,13 @@ void Serialization(const std::string& path, catalogue::TransportCatalogue& trans
     catalog.mutable_routing_settings()->set_bus_wait_time(bus_wait_time);
     catalog.mutable_routing_settings()->set_bus_velocity(bus_velocity);
 
+    SerializeBusesAndStops(transport_catalogue, catalog);
+    SerializeSettingsSVG(map, catalog);
+
+    catalog.SerializeToOstream(&fout);
+}
+
+void SerializeBusesAndStops(catalogue::TransportCatalogue& transport_catalogue, transport_catalogue_serialize::TransportCatalogue& catalog) {
     for (auto& bus : transport_catalogue.GetBuses()) {
         transport_catalogue_serialize::Bus bus_other;
         bus_other.set_number_bus(bus.number_bus);
@@ -48,14 +54,16 @@ void Serialization(const std::string& path, catalogue::TransportCatalogue& trans
     for (auto& [stop, buses] : transport_catalogue.GetListBusesForStop()) {
         transport_catalogue_serialize::BusesForStop buses_for_stop;
         buses_for_stop.set_stop(stop);
-        
+
         for (auto& bus : buses) {
             *buses_for_stop.add_buses() = bus;
         }
 
         *catalog.add_list_buses_for_stop() = buses_for_stop;
     }
+}
 
+void SerializeSettingsSVG(renderer::MapRenderer& map, transport_catalogue_serialize::TransportCatalogue& catalog) {
     auto& link_settings = map.GetSettingsSVG();
     auto catalog_ptr = catalog.mutable_settings_svg();
 
@@ -111,8 +119,6 @@ void Serialization(const std::string& path, catalogue::TransportCatalogue& trans
             (*value).set_opacity(std::get<3>(val).opacity);
         }
     }
-
-    catalog.SerializeToOstream(&fout);
 }
 
 std::pair<double, double> Deserialize(const std::string& path, catalogue::TransportCatalogue& transport_catalogue,
@@ -122,6 +128,13 @@ std::pair<double, double> Deserialize(const std::string& path, catalogue::Transp
     transport_catalogue_serialize::TransportCatalogue catalog;
     catalog.ParseFromIstream(&fin);
 
+    DeserializeBusesAndStops(transport_catalogue, catalog);
+    DeserializeSettingsSVG(link_settings, catalog);
+
+    return { catalog.routing_settings().bus_wait_time() ,catalog.routing_settings().bus_velocity() };
+}
+
+void DeserializeBusesAndStops(catalogue::TransportCatalogue& transport_catalogue, transport_catalogue_serialize::TransportCatalogue& catalog) {
     for (auto& bus : catalog.buses()) {
         catalogue::Bus bus_other;
         bus_other.is_roundtrip = bus.is_roundtrip();
@@ -153,7 +166,9 @@ std::pair<double, double> Deserialize(const std::string& path, catalogue::Transp
 
         transport_catalogue.GetListBusesForStop()[value.stop()] = buses;
     }
+}
 
+void DeserializeSettingsSVG(renderer::RenderSettingsSVG& link_settings, transport_catalogue_serialize::TransportCatalogue& catalog) {
     const auto& catalog_link = catalog.settings_svg();
 
     link_settings.width = catalog_link.width();
@@ -172,7 +187,7 @@ std::pair<double, double> Deserialize(const std::string& path, catalogue::Transp
         link_settings.underlayer_color = catalog_link.underlayer_color().string_color();
     }
     else if (catalog_link.underlayer_color().underlayer_color_case() == transport_catalogue_serialize::Color::UnderlayerColorCase::kRgbColor) {
-        link_settings.underlayer_color = svg::Rgb{ 
+        link_settings.underlayer_color = svg::Rgb{
             static_cast<uint8_t>(catalog_link.underlayer_color().rgb_color().red()),
             static_cast<uint8_t>(catalog_link.underlayer_color().rgb_color().green()),
             static_cast<uint8_t>(catalog_link.underlayer_color().rgb_color().blue())
@@ -197,7 +212,7 @@ std::pair<double, double> Deserialize(const std::string& path, catalogue::Transp
                 static_cast<uint8_t>(color.rgb_color().red()),
                 static_cast<uint8_t>(color.rgb_color().green()),
                 static_cast<uint8_t>(color.rgb_color().blue())
-            });
+                });
         }
         else if (color.underlayer_color_case() == transport_catalogue_serialize::Color::UnderlayerColorCase::kRgbaColor) {
             link_settings.color_palette.push_back(svg::Rgba{
@@ -205,9 +220,7 @@ std::pair<double, double> Deserialize(const std::string& path, catalogue::Transp
                 static_cast<uint8_t>(color.rgba_color().green()),
                 static_cast<uint8_t>(color.rgba_color().blue()),
                 color.rgba_color().opacity()
-            });
+                });
         }
     }
-
-    return { catalog.routing_settings().bus_wait_time() ,catalog.routing_settings().bus_velocity() };
 }

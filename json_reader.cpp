@@ -21,7 +21,7 @@ namespace renderer {
         MapRenderer map;
         map.SetRenderSettingsSVG(doc);
 
-        Serialization(doc.GetRoot().AsMap().at("serialization_settings").AsMap().at("file").AsString(), transport_catalogue, map,
+        Serialize(doc.GetRoot().AsMap().at("serialization_settings").AsMap().at("file").AsString(), transport_catalogue, map,
             doc.GetRoot().AsMap().at("routing_settings").AsMap().at("bus_wait_time").Asdouble(),
             doc.GetRoot().AsMap().at("routing_settings").AsMap().at("bus_velocity").Asdouble());
     }
